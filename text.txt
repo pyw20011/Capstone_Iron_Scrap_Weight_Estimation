@@ -36,13 +36,17 @@
 - **Vision Transformer (ViT)**
     - Dosovitskiy et al.이 제안한 기본 ViT 모델로, ViT-B/16, ViT-L/16, ViT-H/14 등 다양한 크기의 모델이 있습니다.
     - 대규모 데이터셋(ImageNet 등)에서 학습되어 있으며, 전이 학습 시 기본 백본으로 많이 사용됩니다.
+
 - **DeiT (Data-efficient Image Transformers)**
     - DeiT는 적은 양의 데이터로도 효과적으로 학습할 수 있도록 고안된 모델로, 전이 학습 환경에서 특히 유용합니다.
     - 모델 크기와 성능의 균형을 잘 맞춘 DeiT-S, DeiT-B 등 다양한 버전이 있습니다.
+
 - **Swin Transformer**
     - 계층적 구조와 윈도우 기반 self-attention을 활용해 지역적 및 전역적 정보를 모두 효과적으로 캡처합니다.
     - Swin-T, Swin-S, Swin-B 등의 다양한 크기의 모델이 있으며, 다양한 컴퓨터 비전 태스크에서 전이 학습으로 좋은 성능을 보입니다.
+
 - **BEiT (BERT Pre-training of Image Transformers)**
     - BEiT는 마스킹된 이미지 모델링(Masked Image Modeling)을 통해 사전 학습된 모델로, 전이 학습에 활용하기 적합합니다.
+
 - **T2T-ViT (Tokens-to-Token Vision Transformer)**
     - 이미지 패치를 다시 토큰화하는 과정을 도입해, 더 세밀한 지역적 특징과 구조적 정보를 효과적으로 추출할 수 있도록 한 모델입니다.

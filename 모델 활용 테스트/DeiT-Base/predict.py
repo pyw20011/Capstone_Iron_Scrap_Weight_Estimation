@@ -4,32 +4,32 @@ from PIL import Image
 import sys
 import os
 
-# 이미지 전처리 (학습 시 사용한 것과 동일해야 함)
+# 이미지 전처리
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+    transforms.Resize((224, 224)), 
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
 ])
 
-# 모델 불러오기
+# 모델 로드
 def load_model(model_path):
-    model = torch.load(model_path, map_location='cpu', weights_only=False)  # 전체 모델 로드
+    model = torch.load(model_path, map_location='cpu', weights_only=False)
     model.eval()
     return model
 
 # 예측 함수
 def predict_weight(model, image_path):
     image = Image.open(image_path).convert('RGB')
-    image = transform(image).unsqueeze(0)  # (1, C, H, W) 형태로
+    image = transform(image).unsqueeze(0)
     with torch.no_grad():
         output = model(image)
     return output.item()
 
-# 메인 실행
+# 실행
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("사용법: python predict.py model_full.pth ../test.jpg")
+        print("사용법: python predict.py model_deit.pth ../test.jpg")
         sys.exit(1)
 
     model_path = sys.argv[1]

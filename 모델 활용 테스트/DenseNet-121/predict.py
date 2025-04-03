@@ -29,7 +29,7 @@ def predict_weight(model, image_path):
 # 실행
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("사용법: python predict.py model_full.pth test.jpg")
+        print("사용법: python predict.py model_full.pth ../test.jpg")
         sys.exit(1)
 
     model_path = sys.argv[1]

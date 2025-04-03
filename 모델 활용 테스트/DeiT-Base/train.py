@@ -1,24 +1,26 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
 from PIL import Image
 import pandas as pd
 import os
+import timm  # ✅ 추가
 
-# 하이퍼파라미터 설정
+# ✅ 설정
 config = {
+    "model_name": "deit_base_patch16_224",
     "hidden_layers": [256, 64],
     "dropout": 0.3,
     "learning_rate": 1e-4,
     "batch_size": 16,
     "num_epochs": 10,
     "device": "cuda" if torch.cuda.is_available() else "cpu",
-    "model_save_path": "model_full.pth"
+    "model_save_path": "model_deit.pth"
 }
 
-# 사용자 정의 데이터셋
+# ✅ 사용자 정의 데이터셋
 class ScrapWeightDataset(Dataset):
     def __init__(self, csv_file, image_dir, transform=None):
         self.data = pd.read_csv(csv_file)
@@ -38,7 +40,7 @@ class ScrapWeightDataset(Dataset):
 
         return image, torch.tensor(weight, dtype=torch.float32)
 
-# FC Head 구성
+# ✅ FC 헤드 생성
 def get_custom_fc(in_features, hidden_layers, dropout):
     layers = []
     for hidden in hidden_layers:
@@ -47,17 +49,17 @@ def get_custom_fc(in_features, hidden_layers, dropout):
         if dropout > 0:
             layers.append(nn.Dropout(dropout))
         in_features = hidden
-    layers.append(nn.Linear(in_features, 1))
+    layers.append(nn.Linear(in_features, 1))  # 회귀 출력
     return nn.Sequential(*layers)
 
-# DenseNet121 모델 생성
+# ✅ DeiT 모델 생성
 def build_model(config):
-    model = models.densenet121(weights=None)  # pretrained=False
-    in_features = model.classifier.in_features
-    model.classifier = get_custom_fc(in_features, config["hidden_layers"], config["dropout"])
+    model = timm.create_model(config["model_name"], pretrained=False, num_classes=0)  # FC 제거
+    in_features = model.num_features
+    model.head = get_custom_fc(in_features, config["hidden_layers"], config["dropout"])
     return model.to(config["device"])
 
-# 학습 함수
+# ✅ 학습 루프
 def train_model(model, train_loader, config):
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
@@ -81,12 +83,12 @@ def train_model(model, train_loader, config):
         print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {running_loss/len(train_loader):.4f}")
 
     torch.save(model, config["model_save_path"])
-    print(f"전체 모델 저장 완료: {config['model_save_path']}")
-
-# 실행
+    print(f"✅ 모델 저장 완료: {config['model_save_path']}")
+    
+# ✅ 실행
 if __name__ == "__main__":
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),  # DenseNet은 224 입력 사용
+        transforms.Resize((224, 224)),  # DeiT는 224 입력 사용
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -97,4 +99,3 @@ if __name__ == "__main__":
 
     model = build_model(config)
     train_model(model, loader, config)
-

@@ -7,7 +7,19 @@ from PIL import Image
 import pandas as pd
 import os
 
-# ✅ 사용자 정의 Dataset
+# ✅ 사용자 설정 하이퍼파라미터
+config = {
+    "model_name": "resnet50",    # resnet18, resnet34, etc.
+    "hidden_layers": [256, 64],  # FC Head 구조
+    "dropout": 0.3,
+    "learning_rate": 1e-4,
+    "batch_size": 16,
+    "num_epochs": 10,
+    "device": "cuda" if torch.cuda.is_available() else "cpu",
+    "model_save_path": "model_full.pth"  # 전체 모델 저장
+}
+
+# ✅ 사용자 정의 데이터셋
 class ScrapWeightDataset(Dataset):
     def __init__(self, csv_file, image_dir, transform=None):
         self.data = pd.read_csv(csv_file)
@@ -18,58 +30,72 @@ class ScrapWeightDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img_name = os.path.join(self.image_dir, self.data.iloc[idx, 0])
-        image = Image.open(img_name).convert('RGB')
-        weight = self.data.iloc[idx, 1]  # assume 2nd column is weight
+        img_path = os.path.join(self.image_dir, self.data.iloc[idx, 0])
+        image = Image.open(img_path).convert('RGB')
+        weight = self.data.iloc[idx, 1]
 
         if self.transform:
             image = self.transform(image)
 
         return image, torch.tensor(weight, dtype=torch.float32)
 
-# ✅ 이미지 전처리
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],  # ImageNet 기준
-                         std=[0.229, 0.224, 0.225])
-])
+# ✅ 커스터마이징 가능한 FC Head 정의 함수
+def get_custom_fc(in_features, hidden_layers, dropout):
+    layers = []
+    for hidden in hidden_layers:
+        layers.append(nn.Linear(in_features, hidden))
+        layers.append(nn.ReLU())
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
+        in_features = hidden
+    layers.append(nn.Linear(in_features, 1))  # 마지막 출력층
+    return nn.Sequential(*layers)
 
-# ✅ Dataset & DataLoader
-train_dataset = ScrapWeightDataset(csv_file='data.csv', image_dir='images/', transform=transform)
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-
-# ✅ ResNet 불러오기 (ResNet50 기준)
-model = models.resnet50(pretrained=True)
-
-# ✅ 회귀용으로 마지막 FC 레이어 수정
-num_features = model.fc.in_features
-model.fc = nn.Linear(num_features, 1)  # weight는 1개 값이니까
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
-
-# ✅ 손실함수와 옵티마이저 설정
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+# ✅ 모델 구성
+def build_model(config):
+    model = getattr(models, config["model_name"])(weights=None)  # pretrained weights X
+    in_features = model.fc.in_features
+    model.fc = get_custom_fc(in_features, config["hidden_layers"], config["dropout"])
+    return model.to(config["device"])
 
 # ✅ 학습 루프
-num_epochs = 10
-for epoch in range(num_epochs):
-    model.train()
-    running_loss = 0.0
-    for images, weights in train_loader:
-        images = images.to(device)
-        weights = weights.to(device).unsqueeze(1)  # (B, 1) 형태로
+def train_model(model, train_loader, config):
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
 
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, weights)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
+    for epoch in range(config["num_epochs"]):
+        model.train()
+        running_loss = 0.0
 
-    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader):.4f}")
+        for images, weights in train_loader:
+            images = images.to(config["device"])
+            weights = weights.to(config["device"]).unsqueeze(1)
 
-# 모델 저장
-torch.save(model.state_dict(), "model.pth")
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, weights)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+        print(f"Epoch {epoch+1}/{config['num_epochs']}, Loss: {running_loss/len(train_loader):.4f}")
+
+    # ✅ 전체 모델 저장
+    torch.save(model, config["model_save_path"])
+    print(f"✅ 전체 모델 저장 완료: {config['model_save_path']}")
+
+# ✅ 실행
+if __name__ == "__main__":
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    dataset = ScrapWeightDataset("../data.csv", "../[images]", transform)
+    loader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
+
+    model = build_model(config)
+    train_model(model, loader, config)

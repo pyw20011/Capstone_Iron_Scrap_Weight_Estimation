@@ -88,8 +88,8 @@ print(f"✅ 테스트 R2 Score: {r2:.4f}")
 plt.figure(figsize=(8, 6))
 plt.scatter(y_test, y_pred, c='blue', label="Predicted vs Actual")
 plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], 'r--', label="Ideal Line")
-plt.xlabel("Actual Weight (g)")
-plt.ylabel("Predicted Weight (g)")
+plt.xlabel("Actual Weight (gms)")
+plt.ylabel("Predicted Weight (gms)")
 plt.title("Actual vs Predicted Mango Weights")
 plt.legend()
 plt.grid()
@@ -127,8 +127,32 @@ for idx, mango_id in enumerate(sample_ids):
 
     plt.subplot(1, 2, 2)
     plt.imshow(binary_img, cmap='gray')
-    plt.title(f"Actual: {actual_weight:.1f}g\nPredicted: {predicted_weight:.1f}g")
+    plt.title(f"Actual: {actual_weight:.1f}gms\nPredicted: {predicted_weight:.1f}gms")
     plt.axis('off')
     
     plt.tight_layout()
     plt.show()
+
+# 회귀선
+a = reg.coef_[0]
+b = reg.intercept_
+equation = f"y = {a:.5e} * x + {b:.2f}"
+
+# 2. 픽셀 수 vs 실제 무게 + 회귀선 시각화
+plt.figure(figsize=(8, 6))
+
+# X축은 픽셀 수, Y축은 실제 무게
+plt.scatter(X_test, y_test, c='green', label="Pixel Area vs Actual Weight")
+
+# 회귀선 그리기
+x_line = np.linspace(X_test.min(), X_test.max(), 100).reshape(-1, 1)  # 픽셀 수 범위
+y_line = reg.predict(x_line)
+
+plt.plot(x_line, y_line, color='red', linestyle='-', label=f"Regression Line\n{equation}")
+
+plt.xlabel("Pixel Area (number of black pixels)")
+plt.ylabel("Actual Weight (gms)")
+plt.title("Pixel Area vs Actual Mango Weight with Regression Line")
+plt.legend()
+plt.grid()
+plt.show()
